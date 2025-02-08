@@ -25,6 +25,12 @@ class TestRoutes(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_availability_for_list(self):
+        self.client.force_login(self.author)
+        url = reverse('notes:list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
     def test_availability_for_detail_edit_and_delete(self):
         users_statuses = (
             (self.author, HTTPStatus.OK),
@@ -40,9 +46,18 @@ class TestRoutes(TestCase):
 
     def test_redirect_for_anonymous_client(self):
         login_url = reverse('users:login')
-        for name in ('notes:edit', 'notes:delete'):
+        note_slug = {'slug': self.note.slug}
+        names_kwargs = (
+            ('notes:edit', note_slug),
+            ('notes:delete', note_slug),
+            ('notes:detail', note_slug),
+            ('notes:list', None),
+            ('notes:add', None),
+            ('notes:success', None)
+        )
+        for name, kwargs in names_kwargs:
             with self.subTest(name=name):
-                url = reverse(name, kwargs={'slug': self.note.slug})
+                url = reverse(name, kwargs=kwargs)
                 redirect_url = f'{login_url}?next={url}'
                 response = self.client.get(url)
                 self.assertRedirects(response, redirect_url)
