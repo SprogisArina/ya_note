@@ -20,16 +20,23 @@ class TestRoutes(TestCase):
             title='Заголовок', text='Текст', slug='title', author=cls.author
         )
 
-    def test_home_page(self):
-        url = reverse('notes:home')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_pages_availability(self):
+        names = (
+            'notes:home', 'users:login', 'users:logout', 'users:signup'
+        )
+        for name in names:
+            with self.subTest(name=name):
+                url = reverse('notes:home')
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_availability_for_list(self):
-        self.client.force_login(self.author)
-        url = reverse('notes:list')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_availability_for_notes_done_done(self):
+        for name in ('notes:list', 'notes:success', 'notes:add'):
+            self.client.force_login(self.author)
+            with self.subTest(name=name):
+                url = reverse('notes:list')
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_availability_for_detail_edit_and_delete(self):
         users_statuses = (

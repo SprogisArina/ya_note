@@ -5,6 +5,8 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from pytils.translit import slugify
+
 from notes.forms import WARNING
 from notes.models import Note
 
@@ -17,6 +19,7 @@ class TestNoteCreation(TestCase):
     def setUpTestData(cls):
         cls.url = reverse('notes:add')
         cls.redirect_url = reverse('notes:success')
+        cls.login_url = reverse('users:login')
         cls.user = User.objects.create(username='Пользователь')
         cls.auth_client = Client()
         cls.auth_client.force_login(cls.user)
@@ -27,16 +30,21 @@ class TestNoteCreation(TestCase):
         }
 
     def test_anonymous_user_cant_create_note(self):
-        self.client.post(self.url, data=self.form_data)
+        response = self.client.post(self.url, data=self.form_data)
+        expected_url = f'{self.login_url}?next={self.url}'
+        self.assertRedirects(response, expected_url)
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 0)
 
-    def test_user_can_create_comment(self):
+    def test_user_can_create_note(self):
         response = self.auth_client.post(self.url, data=self.form_data)
         self.assertRedirects(response, self.redirect_url)
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 1)
         note = Note.objects.get()
+        self.assertEqual(note.title, self.form_data['title'])
+        self.assertEqual(note.text, self.form_data['text'])
+        self.assertEqual(note.slug, self.form_data['slug'])
         self.assertEqual(note.author, self.user)
 
     def test_slug_is_unique(self):
@@ -53,11 +61,20 @@ class TestNoteCreation(TestCase):
         notes_count = Note.objects.count()
         self.assertEqual(notes_count, 1)
 
+    def test_empty_slug(self):
+        self.form_data.pop('slug')
+        response = self.auth_client.post(self.url, data=self.form_data)
+        self.assertRedirects(response, self.redirect_url)
+        self.assertEqual(Note.objects.count(), 1)
+        note = Note.objects.get()
+        expected_slug = slugify(self.form_data['title'])
+        self.assertEqual(note.slug, expected_slug)
+
 
 class TestNoteEditDelete(TestCase):
     TEXT = 'Текст заметки'
     NEW_TEXT = 'Новый текст заметки'
-    TITLE ='Заголовок'
+    TITLE = 'Заголовок'
     SLUG = 'title'
 
     @classmethod
